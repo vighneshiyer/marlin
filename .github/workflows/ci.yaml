@@ -16,6 +16,7 @@ permissions: {}
 jobs:
   test_verilog:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
         verilator: ["5.026", "5.048", "5.050"]
@@ -33,7 +34,6 @@ jobs:
           pixi-version: v0.63.1
           run-install: false
           global-environments: "verilator==${{ matrix.verilator }}"
-          global-cache: true
       - name: Verilator version
         run: verilator --version
       - name: Manual test
@@ -56,6 +56,7 @@ jobs:
 
   test_spade:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
         verilator: ["5.026", "5.048", "5.050"]
@@ -73,7 +74,6 @@ jobs:
           pixi-version: v0.63.1
           run-install: false
           global-environments: "verilator==${{ matrix.verilator }}"
-          global-cache: true
       - name: Verilator version
         run: verilator --version
       - name: Install swim
@@ -83,6 +83,7 @@ jobs:
 
   test_veryl:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
         verilator: ["5.026", "5.048", "5.050"]
@@ -100,7 +101,6 @@ jobs:
           pixi-version: v0.63.1
           run-install: false
           global-environments: "verilator==${{ matrix.verilator }}"
-          global-cache: true
       - name: Verilator version
         run: verilator --version
       - name: Install Veryl
