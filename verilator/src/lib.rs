@@ -75,19 +75,17 @@ pub mod types {
     pub type QData = u64;
 
     /// From the Verilator documentation: "Data representing one element of
-    /// WData array."
+    /// VlWide."
     pub type EData = u32;
 
-    /// From the Verilator documentation: "Data representing >64 packed bits
-    /// (used as pointer)."
+    /// From the Verilator documentation: "Data representing one element of
+    /// VlWide."
     pub type WData = EData;
 
-    /// From the Verilator documentation: "'bit' of >64 packed bits as array
-    /// input to a function."
+    /// From the Verilator documentation: "Read-Only VlWide handle."
     pub type WDataInP = *const WData;
 
-    /// From the Verilator documentation: "'bit' of >64 packed bits as array
-    /// output from a function."
+    /// From the Verilator documentation: "Read-Write VlWide handle."
     pub type WDataOutP = *mut WData;
 }
 
