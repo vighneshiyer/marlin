@@ -33,7 +33,7 @@ jobs:
         with:
           pixi-version: v0.63.1
           run-install: false
-          global-environments: "verilator==${{ matrix.verilator }} --with lz4-c"
+          global-environments: "verilator==${{ matrix.verilator }} cargo-nextest --with lz4-c"
       - name: Verilator version
         run: verilator --version
       - name: Manual test
@@ -45,7 +45,7 @@ jobs:
           cargo test --package example-verilog-project --test dpi_tutorial -- --exact main
           cargo test --package example-verilog-project --test visibility_works -- --exact main
       - name: Cargo test
-        run: cargo test --package example-verilog-project -- --test-threads=1
+        run: cargo nextest run --package example-verilog-project --test-threads=1
       - name: Ensure parallel tests don't clobber
         run: |
           cd examples/verilog-project
