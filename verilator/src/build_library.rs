@@ -6,18 +6,13 @@
 
 //! See the documentation for [`build_library`].
 
-// hardcoded knowledge:
-// - output library is obj_dir/libV${top_module}.a
-// - location of verilated.h
-// - verilator library is obj_dir/libverilated.a
-
 use std::{fmt::Write, fs, process::Command};
 
 use camino::{Utf8Path, Utf8PathBuf};
 use snafu::{Whatever, prelude::*};
 
 use crate::{
-    BuildTarget, PortDirection, VerilatedModelConfig, VerilatorRuntimeOptions,
+    PortDirection, VerilatedModelConfig, VerilatorRuntimeOptions,
     VerilatorVersion, compute_wdata_word_count_from_width_not_msb,
     dpi::DpiFunction,
     ffi_names::{
@@ -399,7 +394,6 @@ fn needs_verilator_rebuild(
 #[allow(clippy::too_many_arguments)]
 pub fn build_library(
     source_files: &[Utf8PathBuf],
-    build_target: BuildTarget,
     include_directories: &[Utf8PathBuf],
     dpi_functions: &[&'static dyn DpiFunction],
     top_module: &str,
@@ -419,23 +413,17 @@ pub fn build_library(
     fs::create_dir_all(&dpi_artifact_directory).whatever_context(
         "Failed to create dpi/ subdirectory under artifacts directory",
     )?;
-    let shared_library_name = format!("marlin_V{top_module}");
-    let shared_library_path = verilator_artifact_directory
-        .join(format!("lib{shared_library_name}.so"));
-    let static_library_path =
-        verilator_artifact_directory.join(format!("libV{top_module}.a"));
-    let libverilated_path = verilator_artifact_directory.join("libverilated.a");
+    let shared_library_name = format!("libmarlin_V{top_module}.so");
+    let shared_library_path =
+        verilator_artifact_directory.join(&shared_library_name);
 
     let (dpi_file, dpi_rebuilt) =
         bind_dpi_if_needed(top_module, dpi_functions, &dpi_artifact_directory)
             .whatever_context("Failed to build DPI functions")?;
 
     if !options.force_verilator_rebuild
-        && (!needs_verilator_rebuild(
-            source_files,
-            &verilator_artifact_directory,
-        )
-        .whatever_context("Failed to check if artifacts need rebuilding")?
+        && (!needs_verilator_rebuild(source_files, &shared_library_path)
+            .whatever_context("Failed to check if artifacts need rebuilding")?
             && !dpi_rebuilt)
     {
         return Ok((shared_library_path, false));
@@ -454,7 +442,7 @@ pub fn build_library(
     // bug in verilator#5226 means the directory must be relative to -Mdir
     let ffi_wrappers = Utf8Path::new("../ffi/ffi.cpp");
 
-    let mut cflags = vec!["-shared", "-fpic"];
+    let mut cflags = vec!["-fpic"];
     if let Some(cxx_standard) = config.cxx_standard {
         cflags.push(match cxx_standard {
             crate::CxxStandard::Cxx98 => "-std=c++98",
@@ -472,14 +460,22 @@ pub fn build_library(
 
     let cflags_string = cflags.join(" ");
 
-    let makeflags = format!("CXX={}", config.cxx_executable);
+    let mut makeflags = format!(
+        "CXX={} LINK={}",
+        config.cxx_executable, config.cxx_executable
+    );
+    if options.force_verilator_rebuild {
+        makeflags.insert_str(0, "-B ");
+    }
 
     let mut verilator_command = Command::new(&options.verilator_executable);
     verilator_command
-        .args(["--cc", "-sv", "-j", "0", "--build"])
+        .args(["--cc", "-sv", "-j", "0", "--build", "--exe"])
         .args(["-CFLAGS", &cflags_string])
+        .args(["-LDFLAGS", "-shared"])
         .args(["-MAKEFLAGS", &makeflags])
         .args(["--Mdir", verilator_artifact_directory.as_str()])
+        .args(["-o", &shared_library_name])
         .args(["--top-module", top_module])
         .args(source_files)
         .arg(ffi_wrappers);
@@ -526,39 +522,6 @@ pub fn build_library(
             verilator_output.status,
             String::from_utf8_lossy(&verilator_output.stdout),
             String::from_utf8_lossy(&verilator_output.stderr)
-        );
-    }
-
-    // `--build` will create a static library at `lib{prefix}.a``:
-    // - https://veripool.org/guide/latest/exe_verilator.html#cmdoption-build
-    // - https://veripool.org/guide/latest/files.html
-
-    let mut cxx_command = Command::new(&config.cxx_executable);
-    cxx_command
-        .arg("-shared")
-        .args(cflags)
-        .arg(match build_target {
-            BuildTarget::Linux => "-Wl,--whole-archive",
-            BuildTarget::MacOS => "-Wl,-force_load",
-        })
-        .args(["-o", shared_library_path.as_str()])
-        .args([static_library_path, libverilated_path]);
-    if matches!(build_target, BuildTarget::Linux) {
-        cxx_command.arg("-Wl,--no-whole-archive");
-    }
-    if matches!(config.enable_tracing, Some(Waveform::Fst)) {
-        cxx_command.arg("-lz");
-    }
-    let cxx_output = cxx_command
-        .output()
-        .whatever_context("Invocation of C++ compiler failed")?;
-
-    if !cxx_output.status.success() {
-        whatever!(
-            "Invocation of C++ failed with nonzero exit code {}\n\n--- STDOUT ---\n{}\n\n--- STDERR ---\n{}",
-            cxx_output.status,
-            String::from_utf8_lossy(&cxx_output.stdout),
-            String::from_utf8_lossy(&cxx_output.stderr)
         );
     }
 
