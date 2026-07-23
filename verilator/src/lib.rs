@@ -221,8 +221,8 @@ pub struct VerilatedModelConfig {
     /// Whether this model should be compiled with tracing support.
     pub enable_tracing: Option<Waveform>,
 
-    /// The name of the C++ compiler executable; interpreted by [`Command`] and
-    /// in some way by Verilator.
+    /// The name of the C++ compiler executable used by Verilator's generated
+    /// makefile.
     pub cxx_executable: String,
 
     /// Optionally specify the C++ standard used by Verilator.
@@ -359,16 +359,9 @@ struct ModelDeallocator {
     deallocator: extern "C" fn(*mut ffi::c_void),
 }
 
-#[derive(Clone, Copy)]
-enum BuildTarget {
-    Linux,
-    MacOS,
-}
-
 /// Runtime for (System)Verilog code.
 pub struct VerilatorRuntime {
     artifact_directory: Utf8PathBuf,
-    build_target: BuildTarget,
     source_files: Vec<Utf8PathBuf>,
     include_directories: Vec<Utf8PathBuf>,
     dpi_functions: Vec<&'static dyn DpiFunction>,
@@ -572,34 +565,11 @@ impl VerilatorRuntime {
             }
         }
 
-        let uname_output = Command::new("uname")
-            .output()
-            .whatever_context("Invocation of uname failed")?;
-
-        if !uname_output.status.success() {
-            whatever!(
-                "Invocation of uname failed with nonzero exit code {}\n\n--- STDOUT ---\n{}\n\n--- STDERR ---\n{}",
-                uname_output.status,
-                String::from_utf8_lossy(&uname_output.stdout),
-                String::from_utf8_lossy(&uname_output.stderr)
-            );
-        }
-
-        let build_target = if String::from_utf8(uname_output.stdout)
-            .map(|s| s.trim() == "Darwin")
-            .unwrap_or(false)
-        {
-            BuildTarget::MacOS
-        } else {
-            BuildTarget::Linux
-        };
-
         Ok(Self {
             artifact_directory: artifact_directory
                 .to_path_buf()
                 .try_into()
                 .whatever_context("Artifact directory path was not UTF-8")?,
-            build_target,
             source_files: source_files
                 .iter()
                 .map(|path| {
@@ -932,7 +902,6 @@ impl VerilatorRuntime {
 
                 let (library_path, was_rebuilt) = build_library(
                     &self.source_files,
-                    self.build_target,
                     &self.include_directories,
                     &self.dpi_functions,
                     name,
