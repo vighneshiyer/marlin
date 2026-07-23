@@ -113,11 +113,12 @@ pub trait AsDynamicVerilatedModel<'ctx>: 'ctx {
     ) -> Result<VerilatorValue<'_>, DynamicVerilatedModelError>;
 
     /// If `port` is a valid port name for this model, and the port's width is
-    /// `<=` `value.into().width()`, sets the port to `value`.
-    fn pin(
+    /// `<=` `value.into().width()`, sets the port to `value`. Borrowed values
+    /// only need to remain valid for the duration of this call.
+    fn pin<'value>(
         &mut self,
         port: impl Into<String>,
-        value: impl Into<VerilatorValue<'ctx>>,
+        value: impl Into<VerilatorValue<'value>>,
     ) -> Result<(), DynamicVerilatedModelError>;
 }
 
@@ -261,10 +262,10 @@ impl<'ctx> AsDynamicVerilatedModel<'ctx> for DynamicVerilatedModel<'ctx> {
         }
     }
 
-    fn pin(
+    fn pin<'value>(
         &mut self,
         port: impl Into<String>,
-        value: impl Into<VerilatorValue<'ctx>>,
+        value: impl Into<VerilatorValue<'value>>,
     ) -> Result<(), DynamicVerilatedModelError> {
         macro_rules! pin_value {
             ($self:ident, $port:expr, $value:expr, $value_type:ty, $low:literal, $high:expr) => {{
