@@ -28,12 +28,14 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-      - name: Install Verilator
+      - name: Install Verilator and nextest
         uses: prefix-dev/setup-pixi@a09b6247153796b190642a2b53fac4241043cf6f # v0.10.0
         with:
-          pixi-version: v0.63.1
+          pixi-version: v0.73.0
           run-install: false
-          global-environments: "verilator==${{ matrix.verilator }} cargo-nextest --with lz4-c"
+          global-environments: |
+            verilator==${{ matrix.verilator }} --with lz4-c
+            cargo-nextest
       - name: Verilator version
         run: verilator --version
       - name: Manual test
@@ -41,11 +43,11 @@ jobs:
           cd examples/verilog-project
           cargo run --package example-verilog-project --bin tutorial
           cargo run --package example-verilog-project --bin tutorial # rerun
-          cargo test --package example-verilog-project --test dynamic_model_tutorial -- --exact main
-          cargo test --package example-verilog-project --test dpi_tutorial -- --exact main
-          cargo test --package example-verilog-project --test visibility_works -- --exact main
-      - name: Cargo test
-        run: cargo nextest run --package example-verilog-project --test-threads=1
+          cargo nextest run --package example-verilog-project --test dynamic_model_tutorial -E 'test(=main)'
+          cargo nextest run --package example-verilog-project --test dpi_tutorial -E 'test(=main_tutorial)'
+          cargo nextest run --package example-verilog-project --test visibility_works -E 'test(=main)'
+      - name: Test
+        run: cargo nextest run --package example-verilog-project
       - name: Ensure parallel tests don't clobber
         run: |
           cd examples/verilog-project
@@ -68,18 +70,20 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-      - name: Install Verilator
+      - name: Install Verilator and nextest
         uses: prefix-dev/setup-pixi@a09b6247153796b190642a2b53fac4241043cf6f # v0.10.0
         with:
-          pixi-version: v0.63.1
+          pixi-version: v0.73.0
           run-install: false
-          global-environments: "verilator==${{ matrix.verilator }} --with lz4-c"
+          global-environments: |
+            verilator==${{ matrix.verilator }} --with lz4-c
+            cargo-nextest
       - name: Verilator version
         run: verilator --version
       - name: Install swim
         run: cargo install --locked --git https://gitlab.com/spade-lang/swim --rev 639c5d88db76ef3454af4feef842c37985ca1943
       - name: Test
-        run: RUST_LOG=trace cargo test --package example-spade-project
+        run: RUST_LOG=trace cargo nextest run --package example-spade-project
 
   test_veryl:
     strategy:
@@ -95,15 +99,17 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-      - name: Install Verilator
+      - name: Install Verilator and nextest
         uses: prefix-dev/setup-pixi@a09b6247153796b190642a2b53fac4241043cf6f # v0.10.0
         with:
-          pixi-version: v0.63.1
+          pixi-version: v0.73.0
           run-install: false
-          global-environments: "verilator==${{ matrix.verilator }} --with lz4-c"
+          global-environments: |
+            verilator==${{ matrix.verilator }} --with lz4-c
+            cargo-nextest
       - name: Verilator version
         run: verilator --version
       - name: Install Veryl
         uses: veryl-lang/setup-veryl@591f8c366dd0b3c58dd358350c91fc57512ea812
       - name: Test
-        run: RUST_LOG=trace cargo test --package example-veryl-project
+        run: RUST_LOG=trace cargo nextest run --package example-veryl-project
