@@ -17,7 +17,8 @@ use std::path::Path;
 use example_verilog_project::WideMain;
 use marlin::verilator::{
     AsDynamicVerilatedModel, PortDirection, VerilatedModelConfig,
-    VerilatorRuntime, VerilatorRuntimeOptions, WideIn, verilator_version,
+    VerilatorRuntime, VerilatorRuntimeOptions, WideIn, dynamic::VerilatorValue,
+    verilator_version,
 };
 use snafu::Whatever;
 
@@ -96,11 +97,11 @@ fn wide_main_forwards_correctly_dynamically() -> Result<(), Whatever> {
         ],
         VerilatedModelConfig::default(),
     )?;
-    #[allow(
-        clippy::needless_borrows_for_generic_args,
-        reason = "false positive"
-    )]
-    main.pin("wide_input", &[u32::MAX, u32::MAX, 1]).unwrap();
+    {
+        let input = [u32::MAX, u32::MAX, 1];
+        main.pin("wide_input", VerilatorValue::WDataInP(&input))
+            .unwrap();
+    }
     assert_eq!(main.read("wide_output").unwrap(), [0; 3].into());
     main.eval();
     assert_eq!(

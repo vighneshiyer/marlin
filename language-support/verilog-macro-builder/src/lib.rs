@@ -450,10 +450,10 @@ pub fn build_verilated_struct(
                 }
             }
 
-            fn pin(
+            fn pin<'value>(
                 &mut self,
                 port: impl Into<String>,
-                value: impl Into<#crate_name::__reexports::verilator::dynamic::VerilatorValue<'ctx>>,
+                value: impl Into<#crate_name::__reexports::verilator::dynamic::VerilatorValue<'value>>,
             ) -> Result<(), #crate_name::__reexports::verilator::dynamic::DynamicVerilatedModelError> {
                 use #crate_name::__reexports::verilator::AsVerilatedModel;
 
